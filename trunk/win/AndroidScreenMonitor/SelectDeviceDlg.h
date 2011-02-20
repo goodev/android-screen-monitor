@@ -24,6 +24,8 @@ protected:
 
 	CAndroidSocket*		m_pAndroidSocket;
 	
+	BOOL				m_ShowMsg;
+
 	CListCtrl m_ListCtrlDevice;
 
 	void		TrackDevices();

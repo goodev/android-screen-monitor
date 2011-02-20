@@ -17,6 +17,7 @@ CSelectDeviceDlg::CSelectDeviceDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CSelectDeviceDlg::IDD, pParent)
 {
 	m_pAndroidSocket = NULL;
+	m_ShowMsg = TRUE;
 }
 
 CSelectDeviceDlg::~CSelectDeviceDlg()
@@ -31,6 +32,8 @@ CSelectDeviceDlg::~CSelectDeviceDlg()
 void CSelectDeviceDlg::TrackDevices()
 {
 	// TODO: ここにコントロール通知ハンドラ コードを追加します。
+	m_ShowMsg = TRUE;
+
 	PostMessage(WM_USER_SD_TRACK_DEVICES);
 }
 
@@ -84,7 +87,11 @@ void CSelectDeviceDlg::UpdateListDevice(const CStringArray& deviceSerialNumbers)
 
 	if (m_ListCtrlDevice.GetItemCount() <= 0)
 	{
-		ShowAndroidDeviceNotFound();
+		if (m_ShowMsg)
+		{
+			ShowAndroidDeviceNotFound();
+			m_ShowMsg = FALSE;
+		}
 	}
 }
 
