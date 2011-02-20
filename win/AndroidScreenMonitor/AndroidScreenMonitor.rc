@@ -110,7 +110,7 @@ CAPTION "About Android Screen Monitor"
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
     ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
-    LTEXT           "Android Screen Monitor Version 1.01",IDC_STATIC,40,10,130,8,SS_NOPREFIX
+    LTEXT           "Android Screen Monitor Version 1.02",IDC_STATIC,40,10,130,8,SS_NOPREFIX
     LTEXT           "Copyright (C) 2009 adakoda All rights reserved.",IDC_STATIC,40,25,188,8
     PUSHBUTTON      "&Access web site",IDC_BUTTON_ACCESS,40,40,101,14
     DEFPUSHBUTTON   "OK",IDOK,178,40,50,14,WS_GROUP
@@ -199,7 +199,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_UK
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,1,0
+ FILEVERSION 1,0,2,0
  PRODUCTVERSION 1,0,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
@@ -216,7 +216,7 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "adakoda"
-            VALUE "FileVersion", "1.0.1.0"
+            VALUE "FileVersion", "1.0.2.0"
             VALUE "InternalName", "AndroidScreenMonitor.exe"
             VALUE "LegalCopyright", "Copyright (C) 2009 adakoda All rights reserved."
             VALUE "OriginalFilename", "AndroidScreenMonitor.exe"

@@ -14,7 +14,8 @@
 
 #define WM_USER_ASM_SHOW_ADBC				(WM_USER + 1)
 #define WM_USER_ASM_SHOW_SELECT_DEVICE		(WM_USER + 2)
-#define WM_USER_ASM_TRANSPOET				(WM_USER + 3)
+#define WM_USER_ASM_TRANSPORT				(WM_USER + 3)
+#define WM_USER_ASM_SEND_NUDGE				(WM_USER + 4)
 
 // CAboutDlg dialog used for App About
 
@@ -84,7 +85,12 @@ void CAndroidScreenMonitorDlg::ShowSelectDevice()
 
 void CAndroidScreenMonitorDlg::Transport()
 {
-	PostMessage(WM_USER_ASM_TRANSPOET);
+	PostMessage(WM_USER_ASM_TRANSPORT);
+}
+
+void CAndroidScreenMonitorDlg::SendNudge()
+{
+	PostMessage(WM_USER_ASM_SEND_NUDGE);
 }
 
 BOOL CAndroidScreenMonitorDlg::DestroyWindow()
@@ -113,7 +119,8 @@ BEGIN_MESSAGE_MAP(CAndroidScreenMonitorDlg, CDialog)
 
 	ON_MESSAGE(WM_USER_ASM_SHOW_ADBC, OnShowADBC)
 	ON_MESSAGE(WM_USER_ASM_SHOW_SELECT_DEVICE, OnShowSelectDevice)
-	ON_MESSAGE(WM_USER_ASM_TRANSPOET, OnTransport)
+	ON_MESSAGE(WM_USER_ASM_TRANSPORT, OnTransport)
+	ON_MESSAGE(WM_USER_ASM_SEND_NUDGE, OnSendNudge)
 	ON_MESSAGE(WM_USER_ANDROID_SOCKET, OnAndroidSocket)
 	//}}AFX_MSG_MAP
 END_MESSAGE_MAP()
@@ -376,6 +383,40 @@ LRESULT CAndroidScreenMonitorDlg::OnTransport(WPARAM wParam, LPARAM lParam)
 	return lResult;
 }
 
+LRESULT CAndroidScreenMonitorDlg::OnSendNudge(WPARAM wParam, LPARAM lParam)
+{
+	LRESULT lResult = S_OK;
+
+	BOOL bSuccess = TRUE;
+
+	try
+	{
+		if (m_pAndroidSocket == NULL)
+		{
+			m_pAndroidSocket = new CAndroidSocket((CWnd*)this);
+		}
+
+		bSuccess = m_pAndroidSocket->SendNudge();
+	}
+	catch (...)
+	{
+		bSuccess = FALSE;
+
+		if (m_pAndroidSocket)
+		{
+			delete m_pAndroidSocket;
+			m_pAndroidSocket = NULL;
+		}
+	}
+
+	if (!bSuccess)
+	{
+		ShowADBC();
+	}
+
+	return lResult;
+}
+
 LRESULT CAndroidScreenMonitorDlg::OnAndroidSocket(WPARAM wParam, LPARAM lParam)
 {
 	LRESULT lResult = S_OK;
@@ -400,7 +441,7 @@ LRESULT CAndroidScreenMonitorDlg::OnAndroidSocket(WPARAM wParam, LPARAM lParam)
 			{
 				Invalidate();
 
-				Transport();
+				SendNudge();
 			}
 			break;
 		default:
