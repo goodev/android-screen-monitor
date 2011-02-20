@@ -16,8 +16,9 @@ public:
 
 	CStringArray&	GetDeviceSerialNumbers() const {return (CStringArray&)m_DeviceSerialNumbers;} 
 
-	BITMAPINFO*		GetBitmapInfo()		const {return m_pBitmapInfo;}
-	BYTE*			GetFrameBuffer()	const {return m_pFrameBuf;}
+	BITMAPINFO*		GetBitmapInfo()			const {return m_pBitmapInfo;}
+	DWORD			GetFrameBufferLength()	const {return m_FrameBufLen;}
+	BYTE*			GetFrameBuffer()		const {return m_pFrameBuf;}
 
 	BOOL			SendTrackDevices();
 	BOOL			SendTransport(const CString& serialNumber);
@@ -27,6 +28,8 @@ public:
 	LRESULT			OnAndroidSocket(WPARAM wParam, LPARAM lParam);
 
 private:
+	BOOL			ResetRecvBuf(DWORD size);
+
 	BOOL			ResetConnect();
 
 	CString			GetAdbRequest(const CString& request) const;
@@ -46,11 +49,11 @@ private:
 	CWnd*			m_pWnd;
 	CStringArray	m_DeviceSerialNumbers;
 	int				m_SendID;
-	int				m_ReadOffset;
-	int				m_TotalRecvLen;
-	int				m_RecvBufLen;
+	DWORD			m_ReadOffset;
+	DWORD			m_TotalRecvLen;
+	DWORD			m_RecvBufLen;
 	BYTE*			m_pRecvBuf;
 	BITMAPINFO*		m_pBitmapInfo;
-	int				m_FrameBufLen;
+	DWORD			m_FrameBufLen;
 	BYTE*			m_pFrameBuf;
 };

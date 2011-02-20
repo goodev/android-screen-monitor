@@ -68,9 +68,15 @@ CAndroidScreenMonitorDlg::CAndroidScreenMonitorDlg(CWnd* pParent /*=NULL*/)
 
 	m_pAndroidSocket = NULL;
 	m_aSerialNumber = _T("");
+	m_FrameBufLen = 0;
+	m_pFrameBuf = NULL;
+	m_FrameWidth = 0;
+	m_FrameHeight = 0;
+
+	m_InvalidateSize = TRUE;
+	m_Scale = 1.0f;
 	m_Rotation = FALSE;
-	m_LastWidth = -1;
-	m_LastHeight = -1;
+	m_Saving = FALSE;
 }
 
 void CAndroidScreenMonitorDlg::ShowADBC()
@@ -93,9 +99,31 @@ void CAndroidScreenMonitorDlg::SendNudge()
 	PostMessage(WM_USER_ASM_SEND_NUDGE);
 }
 
+void CAndroidScreenMonitorDlg::Zoom(float scale)
+{
+	m_Scale = scale;
+
+	m_InvalidateSize = TRUE;
+	Invalidate();
+}
+
+void CAndroidScreenMonitorDlg::Rotate()
+{
+	m_Rotation = !m_Rotation;
+
+	m_InvalidateSize = TRUE;
+	Invalidate();
+}
+
 BOOL CAndroidScreenMonitorDlg::DestroyWindow()
 {
 	// TODO: ここに特定なコードを追加するか、もしくは基本クラスを呼び出してください。
+	if (m_pFrameBuf)
+	{
+		GlobalFree(m_pFrameBuf);
+		m_pFrameBuf = NULL;
+	}
+
 	if (m_pAndroidSocket)
 	{
 		delete m_pAndroidSocket;
@@ -116,6 +144,7 @@ BEGIN_MESSAGE_MAP(CAndroidScreenMonitorDlg, CDialog)
 	ON_WM_QUERYDRAGICON()
 	ON_WM_ERASEBKGND()
 	ON_WM_LBUTTONDBLCLK()
+	ON_COMMAND(ID_FILE_SAVE, &OnFileSave)
 
 	ON_MESSAGE(WM_USER_ASM_SHOW_ADBC, OnShowADBC)
 	ON_MESSAGE(WM_USER_ASM_SHOW_SELECT_DEVICE, OnShowSelectDevice)
@@ -123,6 +152,11 @@ BEGIN_MESSAGE_MAP(CAndroidScreenMonitorDlg, CDialog)
 	ON_MESSAGE(WM_USER_ASM_SEND_NUDGE, OnSendNudge)
 	ON_MESSAGE(WM_USER_ANDROID_SOCKET, OnAndroidSocket)
 	//}}AFX_MSG_MAP
+	ON_COMMAND(ID_VIEW_ZOOM_1, &CAndroidScreenMonitorDlg::OnViewZoom1)
+	ON_COMMAND(ID_VIEW_ZOOM_2, &CAndroidScreenMonitorDlg::OnViewZoom2)
+	ON_COMMAND(ID_VIEW_ZOOM_5, &CAndroidScreenMonitorDlg::OnViewZoom5)
+	ON_COMMAND(ID_VIEW_ZOOM_7, &CAndroidScreenMonitorDlg::OnViewZoom7)
+	ON_COMMAND(ID_VIEW_ROTATE, &CAndroidScreenMonitorDlg::OnViewRotate)
 END_MESSAGE_MAP()
 
 
@@ -156,6 +190,8 @@ BOOL CAndroidScreenMonitorDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
+	m_hAccelTable = ::LoadAccelerators(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_ACCELERATOR));
+
 	ShowADBC();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
@@ -172,6 +208,20 @@ void CAndroidScreenMonitorDlg::OnSysCommand(UINT nID, LPARAM lParam)
 	{
 		CDialog::OnSysCommand(nID, lParam);
 	}
+}
+
+BOOL CAndroidScreenMonitorDlg::PreTranslateMessage(MSG* pMsg)
+{
+	// TODO: ここに特定なコードを追加するか、もしくは基本クラスを呼び出してください。
+	if (m_hAccelTable)
+	{
+		if (TranslateAccelerator(m_hWnd, m_hAccelTable, pMsg))
+		{
+			return TRUE;
+		}
+	}
+
+	return CDialog::PreTranslateMessage(pMsg);
 }
 
 // If you add a minimize button to your dialog, you will need the code below
@@ -203,38 +253,38 @@ void CAndroidScreenMonitorDlg::OnPaint()
 
 		if (m_pAndroidSocket)
 		{
-			BITMAPINFO* pBitmapInfo = m_pAndroidSocket->GetBitmapInfo();
-
-			if (pBitmapInfo)
+			if (m_pFrameBuf)
 			{
-				BYTE* pFrameBuffer = m_pAndroidSocket->GetFrameBuffer();
+				int w = m_FrameWidth;
+				int h = m_FrameHeight;
 
-				if (pFrameBuffer)
 				{
-					int w = pBitmapInfo->bmiHeader.biWidth;
-					int h = abs(pBitmapInfo->bmiHeader.biHeight);
+					Graphics graphics(dc.GetSafeHdc());
+					
+					graphics.SetInterpolationMode(InterpolationModeHighQuality);
+					graphics.SetSmoothingMode(SmoothingModeHighQuality);
 
+					Matrix matrix;
+
+					matrix.Scale(m_Scale, m_Scale);
+					
+					if (m_Rotation)
 					{
-						Graphics graphics(dc.GetSafeHdc());
-						
-						if (m_Rotation)
-						{
-							Matrix matrix;
-
-							matrix.Translate(0.0f, (float)w);
-							matrix.Rotate(-90.0f);
-							graphics.SetTransform(&matrix);
-						}
-
-						Bitmap bitmap(w, h, w * 2, PixelFormat16bppRGB565, pFrameBuffer);
-
-						Point pt = Point(0, 0);
-
-						graphics.DrawImage(&bitmap, pt);
+						matrix.Translate(0.0f, (float)w);
+						matrix.Rotate(-90.0f);
 					}
-/*
-					SetDIBitsToDevice(dc.GetSafeHdc(), 0, 0, w, h, 0, 0, 0, h, pFrameBuffer, pBitmapInfo, DIB_PAL_COLORS);
-*/
+
+					graphics.SetTransform(&matrix);
+					
+					Bitmap bitmap(w, h, w * 2, PixelFormat16bppRGB565, m_pFrameBuf);
+
+					Point pt = Point(0, 0);
+
+					graphics.DrawImage(&bitmap, pt);
+				}
+
+				if (m_InvalidateSize)
+				{
 					if (m_Rotation)
 					{
 						int tmp = w;
@@ -242,24 +292,20 @@ void CAndroidScreenMonitorDlg::OnPaint()
 						h = tmp;
 					}
 
-					if ((m_LastWidth != w) || (m_LastHeight != h))
-					{
-						CRect clientRect = CRect(0, 0, w, h);
+					CRect clientRect = CRect(0, 0, (int)(w * m_Scale), (int)(h * m_Scale));
 
-						AdjustWindowRect(clientRect, GetStyle(), FALSE);
+					AdjustWindowRect(clientRect, GetStyle(), FALSE);
 
-						WINDOWPLACEMENT wp;
+					WINDOWPLACEMENT wp;
 
-						ZeroMemory(&wp, sizeof(wp));
+					ZeroMemory(&wp, sizeof(wp));
 
-						GetWindowPlacement(&wp);
-						wp.rcNormalPosition.right = wp.rcNormalPosition.left + clientRect.Width();
-						wp.rcNormalPosition.bottom = wp.rcNormalPosition.top + clientRect.Height();
-						SetWindowPlacement(&wp);
+					GetWindowPlacement(&wp);
+					wp.rcNormalPosition.right = wp.rcNormalPosition.left + clientRect.Width();
+					wp.rcNormalPosition.bottom = wp.rcNormalPosition.top + clientRect.Height();
+					SetWindowPlacement(&wp);
 
-						m_LastWidth = w;
-						m_LastHeight = h;
-					}
+					m_InvalidateSize = FALSE;
 				}
 			}
 		}
@@ -297,11 +343,95 @@ BOOL CAndroidScreenMonitorDlg::OnEraseBkgnd(CDC* pDC)
 void CAndroidScreenMonitorDlg::OnLButtonDblClk(UINT nFlags, CPoint point)
 {
 	// TODO: ここにメッセージ ハンドラ コードを追加するか、既定の処理を呼び出します。
-	m_Rotation = !m_Rotation;
-
-	Invalidate();
+	Rotate();
 
 	CDialog::OnLButtonDblClk(nFlags, point);
+}
+
+void CAndroidScreenMonitorDlg::OnFileSave()
+{
+	// TODO: ここにコマンド ハンドラ コードを追加します。
+	m_Saving = TRUE;
+
+	CString filter("PNG (*.png)|*.png||");
+
+	CFileDialog dlg(FALSE, _T("png"), NULL, OFN_OVERWRITEPROMPT, filter);
+
+	if (dlg.DoModal() == IDOK)
+	{
+		Bitmap src(m_FrameWidth, m_FrameHeight, m_FrameWidth * 2, PixelFormat16bppRGB565, m_pFrameBuf);
+
+		int dstWidth = (int)(src.GetWidth() * m_Scale);
+		int dstHeight = (int)(src.GetHeight() * m_Scale);
+
+		if (m_Rotation)
+		{
+			int tmp = dstWidth;
+			dstWidth = dstHeight;
+			dstHeight = tmp;
+		}
+
+		Bitmap dst(dstWidth, dstHeight, dstWidth * 2, PixelFormat16bppRGB565, NULL);
+
+		Graphics graphics(&dst);
+
+		graphics.SetInterpolationMode(InterpolationModeHighQuality);
+		graphics.SetSmoothingMode(SmoothingModeHighQuality);
+
+		Matrix matrix;
+
+		matrix.Scale(m_Scale, m_Scale);
+
+		if (m_Rotation)
+		{
+			matrix.Translate(0.0f, (float)src.GetWidth());
+			matrix.Rotate(-90.0f);
+		}
+
+		graphics.SetTransform(&matrix);
+
+		Point pt = Point(0, 0);
+
+		graphics.DrawImage(&src, pt);
+
+		CLSID pngClsid;
+
+		GetEncoderClsid(L"image/png", &pngClsid);
+
+		dst.Save(dlg.GetFileName(), &pngClsid, NULL);
+	}
+
+	m_Saving = FALSE;
+}
+
+void CAndroidScreenMonitorDlg::OnViewZoom1()
+{
+	// TODO: ここにコマンド ハンドラ コードを追加します。
+	Zoom(1.0f);
+}
+
+void CAndroidScreenMonitorDlg::OnViewZoom2()
+{
+	// TODO: ここにコマンド ハンドラ コードを追加します。
+	Zoom(2.0f);
+}
+
+void CAndroidScreenMonitorDlg::OnViewZoom5()
+{
+	// TODO: ここにコマンド ハンドラ コードを追加します。
+	Zoom(0.5f);
+}
+
+void CAndroidScreenMonitorDlg::OnViewZoom7()
+{
+	// TODO: ここにコマンド ハンドラ コードを追加します。
+	Zoom(0.75f);
+}
+
+void CAndroidScreenMonitorDlg::OnViewRotate()
+{
+	// TODO: ここにコマンド ハンドラ コードを追加します。
+	Rotate();
 }
 
 LRESULT CAndroidScreenMonitorDlg::OnShowADBC(WPARAM wParam, LPARAM lParam)
@@ -423,6 +553,7 @@ LRESULT CAndroidScreenMonitorDlg::OnAndroidSocket(WPARAM wParam, LPARAM lParam)
 
 	if (m_pAndroidSocket)
 	{
+/*
 		switch (wParam)
 		{
 		case AS_WPARAM_POST_TRACK_DEVICES:
@@ -438,18 +569,53 @@ LRESULT CAndroidScreenMonitorDlg::OnAndroidSocket(WPARAM wParam, LPARAM lParam)
 			}
 			break;
 		case AS_WPARAM_POST_NUDGE:
+*/
+			if (wParam == AS_WPARAM_POST_NUDGE)
 			{
-				Invalidate();
+				if ((m_pFrameBuf == NULL) ||
+					(m_pAndroidSocket->GetFrameBufferLength() != m_FrameBufLen))
+				{
+					if (m_pFrameBuf)
+					{
+						GlobalFree(m_pFrameBuf);
+						m_pFrameBuf = NULL;
+					}
 
-				SendNudge();
+					m_FrameBufLen = m_pAndroidSocket->GetFrameBufferLength();
+					m_pFrameBuf = (BYTE*)GlobalAlloc(GPTR, m_FrameBufLen);
+				}
+
+				if (m_pFrameBuf)
+				{
+					if (!m_Saving)
+					{
+						BITMAPINFO* pBitmapInfo = m_pAndroidSocket->GetBitmapInfo();
+
+						if (pBitmapInfo)
+						{
+							m_FrameWidth = pBitmapInfo->bmiHeader.biWidth;
+							m_FrameHeight = abs(pBitmapInfo->bmiHeader.biHeight);
+						}
+
+						if (m_pFrameBuf)
+						{	
+							CopyMemory(m_pFrameBuf, m_pAndroidSocket->GetFrameBuffer(), m_FrameBufLen);
+						}
+					}
+
+					Invalidate();
+
+					SendNudge();
+				}
 			}
+/*
 			break;
 		default:
 			{
 			}
 			break;
 		}
-
+*/
 		lResult = m_pAndroidSocket->OnAndroidSocket(wParam, lParam);
 	}
 

@@ -1,17 +1,16 @@
 #include "stdafx.h"
 #include "AndroidSocket.h"
 
-#define SEND_ID_UNKOWN					0
-#define SEND_ID_TRACK_DEVICES			1
-#define SEND_ID_TRANSPORT				2
-#define SEND_ID_FRAME_BUFFER			3
-#define SEND_ID_0						4
+#define SEND_ID_UNKOWN					(0)
+#define SEND_ID_TRACK_DEVICES			(1)
+#define SEND_ID_TRANSPORT				(2)
+#define SEND_ID_FRAME_BUFFER			(3)
+#define SEND_ID_0						(4)
 
 #define ADB_ADDR						_T("127.0.0.1")
-#define ADB_PORT						5037
+#define ADB_PORT						(5037)
 
-//#define RECV_BUF_SIZE					(320 * 480 * 2)
-#define RECV_BUF_SIZE					(1920 * 1080 * 2)
+#define RECV_BUF_SIZE					(320 * 480 * 2)
 
 #define RECV_SIZE_FRAME_BUFFER			(20)
 
@@ -87,6 +86,34 @@ LRESULT CAndroidSocket::OnAndroidSocket(WPARAM wParam, LPARAM lParam)
 	}
 
 	return 0;
+}
+
+BOOL CAndroidSocket::ResetRecvBuf(DWORD size)
+{
+	TRACE("CAndroidSocket::ResetRecvBuf()\n");
+
+	BOOL bSuccess = TRUE;
+
+	if (bSuccess)
+	{
+		if (m_pRecvBuf)
+		{
+			GlobalFree(m_pRecvBuf);
+			m_pRecvBuf = NULL;
+		}
+
+		m_RecvBufLen = size;
+
+		m_pRecvBuf = (BYTE*)GlobalAlloc(GPTR, m_RecvBufLen);
+
+		if (m_pRecvBuf == NULL)
+		{
+			m_RecvBufLen = 0;
+			bSuccess = FALSE;
+		}
+	}
+
+	return bSuccess;
 }
 
 BOOL CAndroidSocket::ResetConnect()
@@ -272,6 +299,14 @@ void CAndroidSocket::OnReceive(int nErrorCode)
 
 	if (bSuccess)
 	{
+		if ((recvLen + m_TotalRecvLen) > m_RecvBufLen)
+		{
+			bSuccess = ResetRecvBuf(recvLen + m_TotalRecvLen);
+		}
+	}
+
+	if (bSuccess)
+	{
 		if (Receive(m_pRecvBuf + m_TotalRecvLen, recvLen) == recvLen)
 		{
 			m_TotalRecvLen += recvLen;
@@ -351,7 +386,7 @@ void CAndroidSocket::OnRecvTrackDevices()
 			break;
 		case 8:
 			{
-				int msgLen = 0;
+				DWORD msgLen = 0;
 				CHAR lenBuf[5];
 
 				ZeroMemory(lenBuf, sizeof(lenBuf));
@@ -365,7 +400,7 @@ void CAndroidSocket::OnRecvTrackDevices()
 					CString aDevice = _T("");
 					CStringArray devices;
 
-					for (int i = 0; i < msgLen; i++)
+					for (DWORD i = 0; i < msgLen; i++)
 					{
 						if (m_pRecvBuf[8 + i] != '\n')
 						{
@@ -547,8 +582,7 @@ void CAndroidSocket::OnRecvFrameBuffer()
 								m_pFrameBuf = NULL;
 							}
 
-							ZeroMemory(m_pBitmapInfo, bitmapInfoSize);
-
+//							ZeroMemory(m_pBitmapInfo, bitmapInfoSize);
 							m_pBitmapInfo->bmiHeader.biSize				= bitmapInfoSize;
 							m_pBitmapInfo->bmiHeader.biWidth			= imageWidth;
 							m_pBitmapInfo->bmiHeader.biHeight			= -imageHeight;	// Top-Down
@@ -566,6 +600,20 @@ void CAndroidSocket::OnRecvFrameBuffer()
 
 							m_FrameBufLen = imageSize;
 							m_pFrameBuf = (BYTE*)GlobalAlloc(GPTR, m_FrameBufLen);
+
+							if (m_pFrameBuf == NULL)
+							{
+								m_FrameBufLen = 0;
+								bSuccess = FALSE;
+							}
+						}
+					}
+
+					if (bSuccess)
+					{
+						if (m_FrameBufLen > m_RecvBufLen)
+						{
+							bSuccess = ResetRecvBuf(m_FrameBufLen);
 						}
 					}
 
@@ -621,6 +669,7 @@ void CAndroidSocket::OnRecvNudge()
 					CopyMemory(m_pFrameBuf, m_pRecvBuf, m_FrameBufLen);
 
 					m_pWnd->PostMessage(WM_USER_ANDROID_SOCKET, AS_WPARAM_POST_NUDGE, 0);
+//					m_pWnd->SendMessage(WM_USER_ANDROID_SOCKET, AS_WPARAM_POST_NUDGE, 0);
 					
 					bContinue = FALSE;
 				}
