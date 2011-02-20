@@ -249,7 +249,7 @@ BOOL CAndroidSocket::SendString(int sendID, CString string)
 	m_ReadOffset = 0;
 	m_TotalRecvLen	= 0;
 
-Sleep(100);
+//Sleep(100);
 
 	return bSuccess;
 }

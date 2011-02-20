@@ -24,6 +24,7 @@ private:
 	void				ShowADBC();
 	void				ShowSelectDevice();
 	void				Transport();
+	void				SendNudge();
 
 	virtual BOOL DestroyWindow();
 
@@ -47,6 +48,7 @@ protected:
 	LRESULT OnShowADBC(WPARAM wParam, LPARAM lParam);
 	LRESULT OnShowSelectDevice(WPARAM wParam, LPARAM lParam);
 	LRESULT OnTransport(WPARAM wParam, LPARAM lParam);
+	LRESULT OnSendNudge(WPARAM wParam, LPARAM lParam);
 	LRESULT	OnAndroidSocket(WPARAM wParam, LPARAM lParam);
 	DECLARE_MESSAGE_MAP()
 };
