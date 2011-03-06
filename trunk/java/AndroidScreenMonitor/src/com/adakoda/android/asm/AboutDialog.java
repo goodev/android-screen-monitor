@@ -47,9 +47,9 @@ public class AboutDialog extends JDialog {
 		setResizable(false);
 
 		// Label
-		JLabel labelApp = new JLabel("Android Screen Monitor Version 2.10");
+		JLabel labelApp = new JLabel("Android Screen Monitor Version 2.20");
 		JLabel labelCopyright = new JLabel(
-				"Copyright (C) 2009-2010 adakoda Al rights reserved.");
+				"Copyright (C) 2009-2011 adakoda Al rights reserved.");
 		JTextField labelUrl = new JTextField(
 				"http://www.adakoda.com/adakoda/android/asm/");
 		labelUrl.setEditable(false);
